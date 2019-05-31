@@ -87,37 +87,55 @@ open class GridVCFlowLayout: UICollectionViewFlowLayout {
     override open func layoutAttributesForItem(at indexPath: IndexPath) -> UICollectionViewLayoutAttributes? {
         return cache[indexPath.item]
     }
-    
+    func findLayoutOffset(_ xoffset : CGFloat) -> CGFloat {
+        let columns = cache.filter { (la) -> Bool in
+            return la.frame.minX == xoffset
+        }
+        return columns.last?.frame.maxY ?? 0.0
+    }
+    func findLayoutHole(_ offset: [CGFloat]) -> Int {
+        var xindex = 0
+        var t : CGFloat = offset[0]
+        for i in 1..<offset.count {
+            if t > offset[i] {
+                t = offset[i]
+                xindex = i
+            }
+        }
+        return xindex
+    }
     public func appendLayoutAttributes(withCount: Int) {
         if withCount > 0, let c = collectionView {
             
             let c0 = c.numberOfItems(inSection: 0)
             let columnWidth = self.columnWidth
             var xOffset = [CGFloat]()
+            var yOffset = [CGFloat](repeating: 0, count: columnCount)
             for x in 0 ..< columnCount {
                 xOffset.append(CGFloat(x)*columnWidth)
+                yOffset[x] = findLayoutOffset(xOffset[x]+cellpadding)
             }
-            var column = 0
+
             
-            var yOffset = [CGFloat](repeating: 0, count: columnCount)
-            let l0 = cache.count-5
-            for i in l0..<cache.count{
-                let ay = cache[i].frame.height + cache[i].frame.minY
-                let ax = cache[i].frame.minX
-                let c = Int(floor(ax / columnWidth))
-                if c < columnCount {
-                    yOffset[c] = ay
-                } else {
-                    yOffset[i-l0] = ay
-                }
-            }
+            
+//            let l0 = cache.count - columnCount
+//            for i in l0..<cache.count{
+//                let ay = cache[i].frame.height + cache[i].frame.minY
+//                let ax = cache[i].frame.minX
+//                let c = Int(floor(ax / columnWidth))
+//                if c < columnCount {
+//                        yOffset[c] = ay
+//                } else {
+//                    yOffset[i-l0] = ay
+//                }
+//            }
             
             for item in 0 ..< withCount {
                 let indexPath = IndexPath(item: item+c0, section: 0)
-                
+                let xindex = findLayoutHole(yOffset)
                 let photoHeight = (delegate != nil) ? delegate!.collectionView(c, heightForPhotoAtIndexPath: indexPath) : CGFloat(20)
                 let height = cellpadding + photoHeight
-                let frame = CGRect(x: xOffset[column], y: yOffset[column], width: columnWidth, height: height)
+                let frame = CGRect(x: xOffset[xindex], y: yOffset[xindex], width: columnWidth, height: height)
                 let insetFrame = frame.insetBy(dx: cellpadding, dy: cellpadding)
                 
                 
@@ -127,9 +145,8 @@ open class GridVCFlowLayout: UICollectionViewFlowLayout {
                 
                 
                 contentHeight = max(contentHeight, frame.maxY)
-                yOffset[column] = yOffset[column] + height
+                yOffset[xindex] = frame.maxY
                 
-                column = column < (columnCount - 1) ? (column + 1) : 0
             }
         }
     }
